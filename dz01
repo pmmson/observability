@@ -11,7 +11,7 @@
   sudo apt update -y
   sudo apt upgrade -y
 
-1. Устанавливаем Node Exporter
+1. Устанавливаем Node Exporter на виртуальные машины
 
 Скачиваем дистрибутив (https://github.com/prometheus/node_exporter/releases)
 wget https://github.com/prometheus/node_exporter/releases/download/v1.8.2/node_exporter-1.8.2.linux-amd64.tar.gz
@@ -175,7 +175,64 @@ sudo systemctl status prometheus.service
      CGroup: /system.slice/prometheus.service
              └─1171 /usr/local/bin/prometheus --config.file /etc/prometheus/prometheus.yml --storage.tsdb.path /var/lib/prometheus/
 
-Проверяем http://192.168.192.141:9090/targets
-![image](https://github.com/user-attachments/assets/2ef3231d-ac11-4b60-83f8-9d997fc9c465)
+3. Устанавливаем Nginx Exporter на 192.168.192.248
+Скачиваем дистрибутив (https://github.com/nginxinc/nginx-prometheus-exporter/releases)
+wget https://github.com/nginxinc/nginx-prometheus-exporter/releases/download/v1.4.0/nginx-prometheus-exporter_1.4.0_linux_amd64.tar.gz
+        
+Распаковываем
+tar -xzvf nginx-prometheus-exporter_1.4.0_linux_amd64.tar.gz
 
+nginx-prometheus-exporter
+
+Копируем бинарный файл в /usr/local/bin
+cp nginx-prometheus-exporter /usr/local/bin/
+
+Наделяем правами пользователя prometheus
+sudo chown prometheus:prometheus /usr/local/bin/nginx-prometheus-exporter
+
+Создаем сервис
+sudo nano /etc/systemd/system/nginx_exporter.service
+
+[Unit]
+Description=Nginx Exporter
+After=network.target
+[Service]
+User=prometheus
+Group=prometheus
+Type=simple
+ExecStart=/usr/local/bin/nginx-prometheus-exporter
+[Install]
+WantedBy=multi-user.target
+
+Применяем
+sudo systemctl daemon-reload
+
+Запускаем сервис и устанавливаем автозапуск, проверяем статус
+sudo systemctl start nginx_exporter.service
+sudo systemctl enable nginx_exporter.service
+sudo systemctl status nginx_exporter.service
+
+● nginx_exporter.service - Nginx Exporter
+     Loaded: loaded (/etc/systemd/system/nginx_exporter.service; enabled; preset: enabled)
+     Active: active (running) since Thu 2025-01-02 17:33:54 UTC; 7s ago
+   Main PID: 4704 (nginx-prometheu)
+      Tasks: 6 (limit: 2274)
+     Memory: 2.4M (peak: 2.4M)
+        CPU: 6ms
+     CGroup: /system.slice/nginx_exporter.service
+             └─4704 /usr/local/bin/nginx-prometheus-exporter
+
+Прописываем в файле prometheus.yml
+nginx_exporter
+
+  - job_name: 'nginx_exporter_cms'
+    scrape_interval: 5s
+    static_configs:
+     - targets: ["192.168.192.248:9113"]
+
+Применяем
+sudo systemctl restart prometheus.service
+sudo systemctl status prometheus.service
+
+4. Устанавливаем Mysqld Exporter на 192.168.192.248
 
