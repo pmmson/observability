@@ -235,4 +235,102 @@ sudo systemctl restart prometheus.service
 sudo systemctl status prometheus.service
 
 4. Устанавливаем Mysqld Exporter на 192.168.192.248
+Скачиваем дистрибутив (https://github.com/prometheus/mysqld_exporter/releases)
+wget https://github.com/prometheus/mysqld_exporter/releases/download/v0.16.0/mysqld_exporter-0.16.0.linux-amd64.tar.gz
+        
+Распаковываем
+tar -xzvf mysqld_exporter-0.16.0.linux-amd64.tar.gz
 
+mysqld_exporter-0.16.0.linux-amd64
+├── LICENSE
+├── mysqld_exporter
+└── NOTICE
+
+Копируем бинарный файл в /usr/local/bin
+cp mysqld_exporter /usr/local/bin/
+
+Наделяем правами пользователя prometheus
+sudo chown prometheus:prometheus /usr/local/bin/mysqld_exporter
+
+Создаем сервис
+ssudo nano /etc/systemd/system/mysqld_exporter.service
+
+[Unit]
+Description=Mysqld Exporter
+After=network.target
+[Service]
+User=prometheus
+Group=prometheus
+Type=simple
+Restart=always
+ExecStart=/usr/local/bin/mysqld_exporter \
+--config.my-cnf /etc/.mysqld_exporter.cnf \
+--collect.global_status \
+--collect.info_schema.innodb_metrics \
+--collect.auto_increment.columns \
+--collect.info_schema.processlist \
+--collect.binlog_size \
+--collect.info_schema.tablestats \
+--collect.global_variables \
+--collect.info_schema.query_response_time \
+--collect.info_schema.userstats \
+--collect.info_schema.tables \
+--collect.perf_schema.tablelocks \
+--collect.perf_schema.file_events \
+--collect.perf_schema.eventswaits \
+--collect.perf_schema.indexiowaits \
+--collect.perf_schema.tableiowaits \
+--collect.slave_status \
+--web.listen-address=0.0.0.0:9104
+
+[Install]
+WantedBy=multi-user.target
+
+Применяем
+sudo systemctl daemon-reload
+
+Создаем файл подключения к БД
+sudo nano /etc/.mysqld_exporter.cnf
+
+[client]
+user=mysqld_exporter
+password=StrongPassword
+
+Наделйем правами
+sudo chown root:prometheus /etc/.mysqld_exporter.cnf
+
+Подключаемся к БД и создаем пользователя для метрик
+sudo mysql
+CREATE USER 'mysqld_exporter'@'localhost' IDENTIFIED BY 'StrongPassword' WITH MAX_USER_CONNECTIONS 2;
+GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'mysqld_exporter'@'localhost';
+FLUSH PRIVILEGES;
+EXIT
+
+Запускаем сервис и устанавливаем автозапуск, проверяем статус
+sudo systemctl start mysqld_exporter.service
+sudo systemctl enable mysqld_exporter.service
+sudo systemctl status mysqld_exporter.service
+
+● mysqld_exporter.service - Mysqld Exporter
+     Loaded: loaded (/etc/systemd/system/mysqld_exporter.service; enabled; preset: enabled)
+     Active: active (running) since Thu 2025-01-02 18:06:07 UTC; 2min 14s ago
+   Main PID: 4851 (mysqld_exporter)
+      Tasks: 4 (limit: 2274)
+     Memory: 6.9M (peak: 8.1M)
+        CPU: 621ms
+     CGroup: /system.slice/mysqld_exporter.service
+             └─4851 /usr/local/bin/mysqld_exporter --config.my-cnf /etc/.mysqld_exporter.cnf .....
+
+Прописываем в файле prometheus.yml
+mysqld_exporter
+
+  - job_name: 'mysqld_exporter_cms'
+    scrape_interval: 5s
+    static_configs:
+     - targets: ["192.168.192.248:9104"]
+
+Применяем
+sudo systemctl restart prometheus.service
+sudo systemctl status prometheus.service
+
+5. 
