@@ -176,4 +176,6 @@ sudo systemctl status prometheus.service
              └─1171 /usr/local/bin/prometheus --config.file /etc/prometheus/prometheus.yml --storage.tsdb.path /var/lib/prometheus/
 
 Проверяем http://192.168.192.141:9090/targets
+![image](https://github.com/user-attachments/assets/2ef3231d-ac11-4b60-83f8-9d997fc9c465)
+
 
