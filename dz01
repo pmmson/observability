@@ -333,4 +333,92 @@ mysqld_exporter
 sudo systemctl restart prometheus.service
 sudo systemctl status prometheus.service
 
-5. 
+5. Устанавливаем BlackBox Exporter на 192.168.192.141
+Скачиваем дистрибутив (https://github.com/prometheus/blackbox_exporter/releases)
+wget https://github.com/prometheus/blackbox_exporter/releases/download/v0.25.0/blackbox_exporter-0.25.0.linux-amd64.tar.gz
+        
+Распаковываем
+tar -xzvf blackbox_exporter-0.25.0.linux-amd64.tar.gz
+
+blackbox_exporter-0.25.0.linux-amd64
+├── blackbox_exporter
+├── blackbox.yml
+├── LICENSE
+└── NOTICE
+
+Копируем бинарный файл в /usr/local/bin
+cp blackbox_exporter-0.25.0.linux-amd64/blackbox_exporter /usr/local/bin/
+
+Наделяем правами пользователя prometheus
+sudo chown prometheus:prometheus /usr/local/bin/blackbox_exporter
+
+Создаем сервис
+sudo nano /etc/systemd/system/blackbox_exporter.service
+
+[Unit]
+Description=Blackbox Exporter Service
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=prometheus
+Group=prometheus
+ExecStart=/usr/local/bin/blackbox_exporter --config.file=/etc/blackbox/blackbox.yml
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+
+Применяем
+sudo systemctl daemon-reload
+
+Создаем папку
+sudo mkdir /etc/blackbox
+Копируем файл blackbox.yml в /etc/blackbox/
+
+Запускаем сервис и устанавливаем автозапуск, проверяем статус
+sudo systemctl start blackbox_exporter.service
+sudo systemctl enable blackbox_exporter.service
+sudo systemctl status blackbox_exporter.service
+
+● blackbox_exporter.service - Blackbox Exporter Service
+     Loaded: loaded (/etc/systemd/system/blackbox_exporter.service; enabled; preset: enabled)
+     Active: active (running) since Thu 2025-01-02 18:22:52 UTC; 8s ago
+   Main PID: 2834 (blackbox_export)
+      Tasks: 6 (limit: 2274)
+     Memory: 3.6M (peak: 3.7M)
+        CPU: 16ms
+     CGroup: /system.slice/blackbox_exporter.service
+             └─2834 /usr/local/bin/blackbox_exporter --config.file=/etc/blackbox/blackbox.yml
+
+Прописываем в файле prometheus.yml
+blackbox_exporter как проверку его состояния
+
+  - job_name: 'blackbox-master'
+    scrape_interval: 5s
+    static_configs:
+     - targets: ["localhost:9115"]
+
+и прописываем точки-пробы для проверки
+
+  - job_name: 'blackbox-http'
+    scrape_interval: 5s
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    relabel_configs:
+    - source_labels: [__address__]
+      target_label: __param_target
+    - source_labels: [__param_target]
+      target_label: instance
+    - replacement: localhost:9115
+      target_label: __address__
+    static_configs:
+    - targets:
+      - http://192.168.192.248
+      - http://192.168.192.248/admin
+
+Применяем
+sudo systemctl restart prometheus.service
+sudo systemctl status prometheus.service
