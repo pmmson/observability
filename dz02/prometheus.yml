@@ -1,0 +1,93 @@
+
+
+# my global config
+global:
+  scrape_interval: 10s # Set the scrape interval to every 15 seconds. Default is every 1 minute.
+  # evaluation_interval: 15s # Evaluate rules every 15 seconds. The default is every 1 minute.
+  # scrape_timeout is set to the global default (10s).
+  external_labels:
+    site: prod
+    server_name: srv-prometheus
+
+remote_write:
+  - url: http://192.168.192.189:8428/api/v1/write
+    queue_config:
+      max_samples_per_send: 10000
+      capacity: 20000
+      max_shards: 30
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - alertmanager:9093
+
+# Load rules once and periodically evaluate them according to the global 'evaluation_interval'.
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+# A scrape configuration containing exactly one endpoint to scrape:
+# Here it's Prometheus itself.
+scrape_configs:
+  # The job name is added as a label `job=<job_name>` to any timeseries scraped from this config.
+  - job_name: "prometheus_master"
+
+    # metrics_path defaults to '/metrics'
+    # scheme defaults to 'http'.
+    scrape_interval: 5s
+    static_configs:
+     - targets: ["localhost:9090"]
+
+  - job_name: 'node_exporter_master'
+    scrape_interval: 5s
+    static_configs:
+     - targets: ['localhost:9100']
+
+  - job_name: 'node_exporter_cms'
+    scrape_interval: 5s
+    static_configs:
+     - targets: ["192.168.192.248:9100"]
+
+  - job_name: 'nginx_exporter_cms'
+    scrape_interval: 5s
+    static_configs:
+     - targets: ["192.168.192.248:9113"]
+
+  - job_name: 'mysqld_exporter_cms'
+    scrape_interval: 5s
+    static_configs:
+     - targets: ["192.168.192.248:9104"]
+
+  - job_name: 'blackbox-master'
+    scrape_interval: 5s
+    static_configs:
+     - targets: ["localhost:9115"]
+
+  - job_name: 'blackbox-http'
+    scrape_interval: 5s
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    relabel_configs:
+    - source_labels: [__address__]
+      target_label: __param_target
+    - source_labels: [__param_target]
+      target_label: instance
+    - replacement: localhost:9115
+      target_label: __address__
+    static_configs:
+    - targets:
+      - http://192.168.192.248
+      - http://192.168.192.248/admin
+
+  - job_name: 'node_exporter_vm'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ["192.168.192.189:9100"]
+
+  - job_name: 'victoria_metrics'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ["192.168.192.189:8428"]
