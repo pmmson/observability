@@ -1,0 +1,39 @@
+groups:
+- name: UPDOWN
+  rules:
+  - alert: InstanceDown
+    expr: up == 0
+    for: 10s
+    labels:
+      severity: critical
+    annotations:
+      description: '{{ $labels.instance }} {{ $labels.job }} down for more than 10 sec.'
+      summary: Instance {{ $labels.instance }} down
+
+- name: INFRA
+  rules:
+  - alert: HostHighCpuLoad
+    expr: (sum by (instance) (avg by (mode, instance) (rate(node_cpu_seconds_total{mode!="idle"}[2m]))) > 0.1) * on(instance) group_left (nodename) node_uname_info{nodename=~".+"}
+    for: 10s
+    labels:
+      severity: warning
+    annotations:
+      summary: Host high CPU load (instance {{ $labels.instance }})
+      description: "CPU load is > 10%\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+  - alert: HostOutOfDiskSpace
+    expr: ((node_filesystem_avail_bytes * 100) / node_filesystem_size_bytes < 25 and ON (instance, device, mountpoint) node_filesystem_readonly == 0) * on(instance) group_left (nodename) node_uname_info{nodename=~".+"}
+    for: 10s
+    labels:
+      severity: warning
+    annotations:
+      summary: Host out of disk space (instance {{ $labels.instance }})
+      description: "Disk is almost full (< 25% left)\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+  - alert: HostOutOfMemory
+    expr: (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes * 100 < 75) * on(instance) group_left (nodename) node_uname_info{nodename=~".+"}
+    for: 10s
+    labels:
+      severity: warning
+    annotations:
+      summary: Host out of memory (instance {{ $labels.instance }})
+      description: "Node memory is filling up (< 75% left)\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+

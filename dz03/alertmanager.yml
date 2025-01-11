@@ -1,0 +1,36 @@
+route:
+  group_by: ['alertname']
+  group_wait: 10s
+  group_interval: 5s
+  repeat_interval: 15m
+  receiver: 'web.hook'
+  routes:
+      - match:
+          severity: "critical"
+        receiver: tlgrmbot_crtcl
+      - match:
+          severity: "warning"
+        receiver: tlgrmbot_wrnng
+receivers:
+  - name: 'web.hook'
+    webhook_configs:
+      - url: 'http://127.0.0.1:5001/'
+  - name: 'tlgrmbot_wrnng'
+    telegram_configs:
+      - bot_token_file: '/etc/alertmanager/tlgrm.token.wrnng'
+        api_url: 'https://api.telegram.org'
+        chat_id: -----
+        parse_mode: ''
+  - name: 'tlgrmbot_crtcl'
+    telegram_configs:
+      - bot_token_file: '/etc/alertmanager/tlgrm.token.crtcl'
+        api_url: 'https://api.telegram.org'
+        chat_id: -----
+        parse_mode: ''
+
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'dev', 'instance']
